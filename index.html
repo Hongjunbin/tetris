@@ -8,8 +8,6 @@
   #score { font-size: 20px; margin-bottom: 10px; }
   #game { display: grid; grid-template-rows: repeat(20, 30px); grid-template-columns: repeat(10, 30px); gap: 1px; }
   .cell { width: 30px; height: 30px; background: #111; border: 1px solid #333; }
-  .filled { background: #f39c12; }
-  .ghost { background: rgba(243,156,18,0.3); } /* 고스트 블록 색상 */
 </style>
 </head>
 <body>
@@ -36,15 +34,15 @@ for(let r=0;r<ROWS;r++){
     grid.push(row);
 }
 
-// 테트리스 블록 모양
+// 테트리스 블록 모양과 색상
 const TETROMINOES = [
-    {shape:[[[1,1,1,1]], [[1],[1],[1],[1]]]}, // I
-    {shape:[[[1,1],[1,1]]]}, // O
-    {shape:[[[0,1,0],[1,1,1]], [[1,0],[1,1],[1,0]], [[1,1,1],[0,1,0]], [[0,1],[1,1],[0,1]]]}, // T
-    {shape:[[[1,1,0],[0,1,1]], [[0,1],[1,1],[1,0]]]}, // S
-    {shape:[[[0,1,1],[1,1,0]], [[1,0],[1,1],[0,1]]]}, // Z
-    {shape:[[[1,0,0],[1,1,1]], [[1,1],[1,0],[1,0]], [[1,1,1],[0,0,1]], [[0,1],[0,1],[1,1]]]}, // L
-    {shape:[[[0,0,1],[1,1,1]], [[1,0],[1,0],[1,1]], [[1,1,1],[1,0,0]], [[1,1],[0,1],[0,1]]]}  // J
+    {shape:[[[1,1,1,1]], [[1],[1],[1],[1]]], color:"#00f0f0"}, // I - 시안
+    {shape:[[[1,1],[1,1]]], color:"#f0f000"}, // O - 노랑
+    {shape:[[[0,1,0],[1,1,1]], [[1,0],[1,1],[1,0]], [[1,1,1],[0,1,0]], [[0,1],[1,1],[0,1]]], color:"#a000f0"}, // T - 보라
+    {shape:[[[1,1,0],[0,1,1]], [[0,1],[1,1],[1,0]]], color:"#00f000"}, // S - 초록
+    {shape:[[[0,1,1],[1,1,0]], [[1,0],[1,1],[0,1]]], color:"#f00000"}, // Z - 빨강
+    {shape:[[[1,0,0],[1,1,1]], [[1,1],[1,0],[1,0]], [[1,1,1],[0,0,1]], [[0,1],[0,1],[1,1]]], color:"#f0a000"}, // L - 주황
+    {shape:[[[0,0,1],[1,1,1]], [[1,0],[1,0],[1,1]], [[1,1,1],[1,0,0]], [[1,1],[0,1],[0,1]]], color:"#0000f0"}  // J - 파랑
 ];
 
 // 현재 블록 정보
@@ -63,7 +61,7 @@ function collision(x,y,shape){
                 let newY = y+r;
                 let newX = x+c;
                 if(newX<0 || newX>=COLS || newY>=ROWS) return true;
-                if(newY>=0 && grid[newY][newX].classList.contains("static")) return true;
+                if(newY>=0 && grid[newY][newX].dataset.static==="true") return true;
             }
         }
     }
@@ -78,7 +76,10 @@ function fixBlock(){
             if(shape[r][c]){
                 let y = current.y+r;
                 let x = current.x+c;
-                if(y>=0) grid[y][x].classList.add("static");
+                if(y>=0){
+                    grid[y][x].dataset.static="true";
+                    grid[y][x].style.background = current.tetromino.color;
+                }
             }
         }
     }
@@ -90,7 +91,7 @@ function clearLines(){
     for(let r=ROWS-1;r>=0;r--){
         let full = true;
         for(let c=0;c<COLS;c++){
-            if(!grid[r][c].classList.contains("static")){
+            if(grid[r][c].dataset.static!=="true"){
                 full = false;
                 break;
             }
@@ -99,17 +100,15 @@ function clearLines(){
             score += 100;
             for(let row=r; row>0; row--){
                 for(let c=0;c<COLS;c++){
-                    if(grid[row-1][c].classList.contains("static")){
-                        grid[row][c].classList.add("static");
-                    } else {
-                        grid[row][c].classList.remove("static");
-                    }
+                    grid[row][c].dataset.static = grid[row-1][c].dataset.static;
+                    grid[row][c].style.background = grid[row-1][c].style.background;
                 }
             }
             for(let c=0;c<COLS;c++){
-                grid[0][c].classList.remove("static");
+                grid[0][c].dataset.static = "";
+                grid[0][c].style.background = "#111";
             }
-            r++; // 같은 줄 다시 체크
+            r++; // 다시 같은 줄 체크
         }
     }
     scoreDiv.textContent = "점수: "+score;
@@ -144,15 +143,8 @@ function draw(){
     // 전체 초기화
     for(let r=0;r<ROWS;r++){
         for(let c=0;c<COLS;c++){
-            grid[r][c].classList.remove("filled","ghost");
-        }
-    }
-
-    // 고정 블록 표시
-    for(let r=0;r<ROWS;r++){
-        for(let c=0;c<COLS;c++){
-            if(grid[r][c].classList.contains("static")){
-                grid[r][c].classList.add("filled");
+            if(grid[r][c].dataset.static!=="true"){
+                grid[r][c].style.background="#111";
             }
         }
     }
@@ -166,8 +158,8 @@ function draw(){
             if(shape[r][c]){
                 let y = ghostY+r;
                 let x = current.x+c;
-                if(y>=0 && !grid[y][x].classList.contains("static")){
-                    grid[y][x].classList.add("ghost");
+                if(y>=0 && grid[y][x].dataset.static!=="true"){
+                    grid[y][x].style.background = hexToRGBA(current.tetromino.color,0.3);
                 }
             }
         }
@@ -179,10 +171,18 @@ function draw(){
             if(shape[r][c]){
                 let y = current.y+r;
                 let x = current.x+c;
-                if(y>=0) grid[y][x].classList.add("filled");
+                if(y>=0) grid[y][x].style.background = current.tetromino.color;
             }
         }
     }
+}
+
+// 헥스 색상 -> RGBA 변환
+function hexToRGBA(hex, alpha){
+    let r=parseInt(hex.substr(1,2),16);
+    let g=parseInt(hex.substr(3,2),16);
+    let b=parseInt(hex.substr(5,2),16);
+    return `rgba(${r},${g},${b},${alpha})`;
 }
 
 // 블록 이동
@@ -191,7 +191,7 @@ function move(dx,dy){
     if(!collision(current.x+dx,current.y+dy,shape)){
         current.x+=dx;
         current.y+=dy;
-    } else if(dy===1){ // 아래 충돌
+    } else if(dy===1){
         fixBlock();
         newBlock();
     }
@@ -227,7 +227,7 @@ document.addEventListener("keydown",(e)=>{
     if(e.key===" ") drop();
 });
 
-// 블록 자동 낙하
+// 자동 낙하
 setInterval(()=>{ move(0,1); }, 500);
 
 // 초기 렌더
