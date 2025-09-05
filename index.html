@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>테트리스</title>
+<style>
+  body { background: #222; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 20px; }
+  #score { font-size: 20px; margin-bottom: 10px; }
+  #game { display: grid; grid-template-rows: repeat(20, 30px); grid-template-columns: repeat(10, 30px); gap: 1px; }
+  .cell { width: 30px; height: 30px; background: #111; border: 1px solid #333; }
+  .filled { background: #f39c12; }
+  .ghost { background: rgba(243,156,18,0.3); } /* 고스트 블록 색상 */
+</style>
+</head>
+<body>
+
+<div id="score">점수: 0</div>
+<div id="game"></div>
+
+<script>
+const ROWS = 20, COLS = 10;
+const game = document.getElementById("game");
+const scoreDiv = document.getElementById("score");
+let score = 0;
+
+// 그리드 생성
+let grid = [];
+for(let r=0;r<ROWS;r++){
+    let row=[];
+    for(let c=0;c<COLS;c++){
+        const cell=document.createElement("div");
+        cell.classList.add("cell");
+        game.appendChild(cell);
+        row.push(cell);
+    }
+    grid.push(row);
+}
+
+// 테트리스 블록 모양
+const TETROMINOES = [
+    {shape:[[[1,1,1,1]], [[1],[1],[1],[1]]]}, // I
+    {shape:[[[1,1],[1,1]]]}, // O
+    {shape:[[[0,1,0],[1,1,1]], [[1,0],[1,1],[1,0]], [[1,1,1],[0,1,0]], [[0,1],[1,1],[0,1]]]}, // T
+    {shape:[[[1,1,0],[0,1,1]], [[0,1],[1,1],[1,0]]]}, // S
+    {shape:[[[0,1,1],[1,1,0]], [[1,0],[1,1],[0,1]]]}, // Z
+    {shape:[[[1,0,0],[1,1,1]], [[1,1],[1,0],[1,0]], [[1,1,1],[0,0,1]], [[0,1],[0,1],[1,1]]]}, // L
+    {shape:[[[0,0,1],[1,1,1]], [[1,0],[1,0],[1,1]], [[1,1,1],[1,0,0]], [[1,1],[0,1],[0,1]]]}  // J
+];
+
+// 현재 블록 정보
+let current = {
+    tetromino: TETROMINOES[Math.floor(Math.random()*TETROMINOES.length)],
+    rotation: 0,
+    x: 3,
+    y: 0
+};
+
+// 충돌 체크
+function collision(x,y,shape){
+    for(let r=0;r<shape.length;r++){
+        for(let c=0;c<shape[r].length;c++){
+            if(shape[r][c]){
+                let newY = y+r;
+                let newX = x+c;
+                if(newX<0 || newX>=COLS || newY>=ROWS) return true;
+                if(newY>=0 && grid[newY][newX].classList.contains("static")) return true;
+            }
+        }
+    }
+    return false;
+}
+
+// 블록 고정
+function fixBlock(){
+    const shape = current.tetromino.shape[current.rotation];
+    for(let r=0;r<shape.length;r++){
+        for(let c=0;c<shape[r].length;c++){
+            if(shape[r][c]){
+                let y = current.y+r;
+                let x = current.x+c;
+                if(y>=0) grid[y][x].classList.add("static");
+            }
+        }
+    }
+    clearLines();
+}
+
+// 라인 제거
+function clearLines(){
+    for(let r=ROWS-1;r>=0;r--){
+        let full = true;
+        for(let c=0;c<COLS;c++){
+            if(!grid[r][c].classList.contains("static")){
+                full = false;
+                break;
+            }
+        }
+        if(full){
+            score += 100;
+            for(let row=r; row>0; row--){
+                for(let c=0;c<COLS;c++){
+                    if(grid[row-1][c].classList.contains("static")){
+                        grid[row][c].classList.add("static");
+                    } else {
+                        grid[row][c].classList.remove("static");
+                    }
+                }
+            }
+            for(let c=0;c<COLS;c++){
+                grid[0][c].classList.remove("static");
+            }
+            r++; // 같은 줄 다시 체크
+        }
+    }
+    scoreDiv.textContent = "점수: "+score;
+}
+
+// 새 블록 생성
+function newBlock(){
+    current = {
+        tetromino: TETROMINOES[Math.floor(Math.random()*TETROMINOES.length)],
+        rotation: 0,
+        x: 3,
+        y: 0
+    };
+    if(collision(current.x,current.y,current.tetromino.shape[current.rotation])){
+        alert("게임 종료! 점수: "+score);
+        location.reload();
+    }
+}
+
+// 고스트 블록 위치 계산
+function getGhostY(){
+    const shape = current.tetromino.shape[current.rotation];
+    let ghostY = current.y;
+    while(!collision(current.x, ghostY+1, shape)){
+        ghostY++;
+    }
+    return ghostY;
+}
+
+// 블록 그리기
+function draw(){
+    // 전체 초기화
+    for(let r=0;r<ROWS;r++){
+        for(let c=0;c<COLS;c++){
+            grid[r][c].classList.remove("filled","ghost");
+        }
+    }
+
+    // 고정 블록 표시
+    for(let r=0;r<ROWS;r++){
+        for(let c=0;c<COLS;c++){
+            if(grid[r][c].classList.contains("static")){
+                grid[r][c].classList.add("filled");
+            }
+        }
+    }
+
+    const shape = current.tetromino.shape[current.rotation];
+    const ghostY = getGhostY();
+
+    // 고스트 블록 표시
+    for(let r=0;r<shape.length;r++){
+        for(let c=0;c<shape[r].length;c++){
+            if(shape[r][c]){
+                let y = ghostY+r;
+                let x = current.x+c;
+                if(y>=0 && !grid[y][x].classList.contains("static")){
+                    grid[y][x].classList.add("ghost");
+                }
+            }
+        }
+    }
+
+    // 현재 블록 표시
+    for(let r=0;r<shape.length;r++){
+        for(let c=0;c<shape[r].length;c++){
+            if(shape[r][c]){
+                let y = current.y+r;
+                let x = current.x+c;
+                if(y>=0) grid[y][x].classList.add("filled");
+            }
+        }
+    }
+}
+
+// 블록 이동
+function move(dx,dy){
+    const shape = current.tetromino.shape[current.rotation];
+    if(!collision(current.x+dx,current.y+dy,shape)){
+        current.x+=dx;
+        current.y+=dy;
+    } else if(dy===1){ // 아래 충돌
+        fixBlock();
+        newBlock();
+    }
+    draw();
+}
+
+// 블록 회전
+function rotate(){
+    let nextRotation = (current.rotation + 1) % current.tetromino.shape.length;
+    if(!collision(current.x,current.y,current.tetromino.shape[nextRotation])){
+        current.rotation = nextRotation;
+    }
+    draw();
+}
+
+// 스페이스바 즉시 낙하
+function drop(){
+    const shape = current.tetromino.shape[current.rotation];
+    while(!collision(current.x,current.y+1,shape)){
+        current.y++;
+    }
+    fixBlock();
+    newBlock();
+    draw();
+}
+
+// 키 입력
+document.addEventListener("keydown",(e)=>{
+    if(e.key==="ArrowLeft") move(-1,0);
+    if(e.key==="ArrowRight") move(1,0);
+    if(e.key==="ArrowDown") move(0,1);
+    if(e.key==="ArrowUp") rotate();
+    if(e.key===" ") drop();
+});
+
+// 블록 자동 낙하
+setInterval(()=>{ move(0,1); }, 500);
+
+// 초기 렌더
+draw();
+</script>
+
+</body>
+</html>
